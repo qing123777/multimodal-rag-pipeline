@@ -249,7 +249,7 @@ The following queries are designed to exercise each capability of the system:
 
 <b>Name</b>
 1. [Lim Qing](https://github.com/limqing2004) 
-2. [Law Ying Yee]()
+2. [Law Ying Yee](https://github.com/YY80813)
 3. [Chong Zhi Cong]()
 
 ---
