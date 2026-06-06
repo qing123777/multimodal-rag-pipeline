@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CPS RAG Assistant</title>
+
+  <!-- Markdown renderer -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    /* ── Reset & Base ───────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #f5f5f5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header {
+      background: #1a1a2e;
+      color: #e0e0e0;
+      padding: 14px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    header span.badge {
+      background: #e63946;
+      color: #fff;
+      font-size: 0.65rem;
+      padding: 2px 7px;
+      border-radius: 20px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Conversation area ──────────────────────────────────── */
+    #conversation {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      scroll-behavior: smooth;
+    }
+
+    /* ── Message blocks ─────────────────────────────────────── */
+    .msg-block {
+      width: 100%;
+      padding: 12px 0;
+      border-bottom: 1px solid #e8e8e8;
+    }
+    .msg-block:last-child { border-bottom: none; }
+
+    .msg-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #555;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .msg-label.user  { color: #1a6eb5; }
+    .msg-label.ai    { color: #2d6a4f; }
+    .msg-label.system{ color: #888; font-weight: 400; font-style: italic; }
+
+    .msg-content {
+      font-size: 0.94rem;
+      line-height: 1.65;
+      color: #1a1a1a;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Render markdown inside .msg-content */
+    .msg-content p  { margin-bottom: 0.6em; }
+    .msg-content p:last-child { margin-bottom: 0; }
+    .msg-content h1, .msg-content h2, .msg-content h3 {
+      margin: 0.8em 0 0.3em;
+      line-height: 1.3;
+    }
+    .msg-content ul, .msg-content ol {
+      padding-left: 1.4em;
+      margin-bottom: 0.6em;
+    }
+    .msg-content li { margin-bottom: 0.25em; }
+    .msg-content code {
+      background: #f0f0f0;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.88em;
+    }
+    .msg-content pre {
+      background: #f4f4f4;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 12px 14px;
+      overflow-x: auto;
+      margin: 0.5em 0;
+    }
+    .msg-content pre code { background: none; padding: 0; }
+    .msg-content table {
+      border-collapse: collapse;
+      margin: 0.5em 0;
+      font-size: 0.88em;
+      width: 100%;
+    }
+    .msg-content th, .msg-content td {
+      border: 1px solid #ccc;
+      padding: 5px 10px;
+      text-align: left;
+    }
+    .msg-content th { background: #f0f0f0; font-weight: 600; }
+    .msg-content strong { font-weight: 700; }
+    .msg-content em { font-style: italic; }
+    .msg-content blockquote {
+      border-left: 3px solid #ccc;
+      margin: 0.5em 0;
+      padding-left: 12px;
+      color: #555;
+    }
+
+    /* Status lines (⚙️ / 🖼️) */
+    .status-line {
+      font-size: 0.78rem;
+      color: #888;
+      font-style: italic;
+      margin: 3px 0;
+    }
+    .status-line sub { font-size: inherit; }
+
+    /* Streaming cursor */
+    .cursor::after {
+      content: "▍";
+      animation: blink 0.8s step-end infinite;
+      color: #555;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* ── Input area ─────────────────────────────────────────── */
+    #input-area {
+      flex-shrink: 0;
+      background: #fff;
+      border-top: 1px solid #ddd;
+      padding: 14px 24px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    #query-input {
+      flex: 1;
+      padding: 10px 14px;
+      font-size: 0.94rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      resize: none;
+      line-height: 1.5;
+      min-height: 44px;
+      max-height: 140px;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    #query-input:focus { border-color: #1a6eb5; }
+    #query-input:disabled { background: #f5f5f5; color: #888; }
+
+    #send-btn {
+      padding: 10px 20px;
+      background: #1a6eb5;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+      height: 44px;
+    }
+    #send-btn:hover:not(:disabled) { background: #155a96; }
+    #send-btn:disabled { background: #9ab8d8; cursor: not-allowed; }
+
+    /* Hint text */
+    #input-hint {
+      font-size: 0.72rem;
+      color: #aaa;
+      padding: 0 24px 8px;
+      background: #fff;
+      flex-shrink: 0;
+    }
+
+    /* ── Welcome message ────────────────────────────────────── */
+    #welcome {
+      color: #888;
+      font-size: 0.88rem;
+      text-align: center;
+      margin: auto;
+      padding: 40px 0;
+    }
+    #welcome h2 { font-size: 1.1rem; color: #555; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<header>
+  🛡️ Singapore CPS RAG Assistant
+  <span class="badge">BETA</span>
+</header>
+
+<div id="conversation">
+  <div id="welcome">
+    <h2>🤖 CPS Assistant</h2>
+    <p>Ask me anything about the CPSA+ Guidebook or Consumer Product Safety Regulations.</p>
+  </div>
+</div>
+
+<div id="input-area">
+  <textarea id="query-input" rows="1" placeholder="Type your message and press Enter…"></textarea>
+  <button id="send-btn">Send</button>
+</div>
+<div id="input-hint">Press <kbd>Enter</kbd> to send &nbsp;·&nbsp; <kbd>Shift+Enter</kbd> for a new line</div>
+
+<script>
+  const conversation = document.getElementById('conversation');
+  const welcome      = document.getElementById('welcome');
+  const queryInput   = document.getElementById('query-input');
+  const sendBtn      = document.getElementById('send-btn');
+
+  // Auto-grow textarea
+  queryInput.addEventListener('input', () => {
+    queryInput.style.height = 'auto';
+    queryInput.style.height = Math.min(queryInput.scrollHeight, 140) + 'px';
+  });
+
+  // Enter to send, Shift+Enter for newline
+  queryInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  sendBtn.addEventListener('click', sendMessage);
+
+  // ── Helpers ──────────────────────────────────────────────
+
+  function scrollToBottom() {
+    conversation.scrollTop = conversation.scrollHeight;
+  }
+
+  function appendUserMessage(text) {
+    if (welcome) welcome.remove();
+
+    const block = document.createElement('div');
+    block.className = 'msg-block';
+    block.innerHTML = `
+      <div class="msg-label user">👤 User</div>
+      <div class="msg-content">${escapeHtml(text)}</div>
+    `;
+    conversation.appendChild(block);
+    scrollToBottom();
+  }
+
+  /**
+   * Creates an AI message block and returns handles for:
+   *   - addStatus(text)   → append a ⚙️ status line
+   *   - appendText(text)  → stream raw text into the response area
+   *   - finalize()        → render final markdown, remove cursor
+   */
+  function createAiBlock() {
+    if (welcome) welcome.remove();
+
+    const block = document.createElement('div');
+    block.className = 'msg-block';
+
+    const label = document.createElement('div');
+    label.className = 'msg-label ai';
+    label.textContent = '🤖 CPS Assistant';
+
+    const statusArea = document.createElement('div');
+    statusArea.className = 'status-area';
+
+    const content = document.createElement('div');
+    content.className = 'msg-content cursor';
+
+    block.appendChild(label);
+    block.appendChild(statusArea);
+    block.appendChild(content);
+    conversation.appendChild(block);
+    scrollToBottom();
+
+    let rawText = '';
+
+    return {
+      addStatus(text) {
+        const line = document.createElement('div');
+        line.className = 'status-line';
+        line.innerHTML = text;   // HTML from the server (contains <sub> tags)
+        statusArea.appendChild(line);
+        scrollToBottom();
+      },
+      appendText(chunk) {
+        rawText += chunk;
+        content.textContent = rawText;   // plain text while streaming
+        scrollToBottom();
+      },
+      finalize() {
+        content.classList.remove('cursor');
+        if (rawText.trim()) {
+          // Render accumulated text as Markdown
+          content.innerHTML = marked.parse(rawText);
+        }
+        scrollToBottom();
+      },
+    };
+  }
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── SSE stream parser ────────────────────────────────────
+
+  /**
+   * STATUS_RE matches the status chunks emitted by Assistant.stream():
+   *   "\n\n<sub>⚙️ ...</sub>\n\n"  or  "<br>"
+   * Everything else is treated as final-response text.
+   */
+  const STATUS_RE = /(<sub>[^<]*<\/sub>|<br>)/i;
+
+  async function streamResponse(query, aiBlock) {
+    const response = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: query }),
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let inResponsePhase = false;  // true once we've seen the <br> separator
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE messages are separated by double newlines
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop();   // keep incomplete last chunk
+
+      for (const part of parts) {
+        if (!part.startsWith('data:')) continue;
+        const raw = part.slice(5).trim();
+
+        if (raw === '[DONE]') {
+          aiBlock.finalize();
+          return;
+        }
+
+        let parsed;
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          continue;
+        }
+
+        const chunk = parsed.chunk ?? '';
+        if (!chunk) continue;
+
+        // Detect the <br> separator that marks the transition from status to response
+        if (!inResponsePhase) {
+          if (chunk.trim() === '<br>') {
+            inResponsePhase = true;
+            continue;
+          }
+          // Check for status sub tags
+          if (STATUS_RE.test(chunk)) {
+            // Extract the <sub>...</sub> or keep as-is
+            const match = chunk.match(/<sub>([^<]*)<\/sub>/i);
+            if (match) {
+              aiBlock.addStatus(`<sub>${match[1]}</sub>`);
+            }
+            continue;
+          }
+        }
+
+        // Anything past the <br> is the final response text
+        aiBlock.appendText(chunk);
+      }
+    }
+
+    // Stream ended without [DONE]
+    aiBlock.finalize();
+  }
+
+  // ── Main send handler ────────────────────────────────────
+
+  async function sendMessage() {
+    const query = queryInput.value.trim();
+    if (!query) return;
+
+    // Lock UI
+    queryInput.value = '';
+    queryInput.style.height = 'auto';
+    queryInput.disabled = true;
+    sendBtn.disabled = true;
+
+    appendUserMessage(query);
+    const aiBlock = createAiBlock();
+
+    try {
+      await streamResponse(query, aiBlock);
+    } catch (err) {
+      aiBlock.addStatus(`<sub>❌ Error: ${escapeHtml(String(err))}</sub>`);
+      aiBlock.finalize();
+    } finally {
+      queryInput.disabled = false;
+      sendBtn.disabled = false;
+      queryInput.focus();
+    }
+  }
+</script>
+</body>
+</html>
