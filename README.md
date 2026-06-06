@@ -10,8 +10,8 @@
    - [Phase 1 — Ingestion](#phase-1--ingestion)
    - [Phase 2 — Retrieval](#phase-2--retrieval)
 3. [Key Characteristics](#key-characteristics)
-4. [Tech Stack](#tech-stack)
-5. [Project Structure](#project-structure)
+4. [Project Structure](#project-structure)
+5. [Tech Stack](#tech-stack)
 6. [Setup & Usage](#setup--usage)
 7. [Demo Queries](#demo-queries)
 8. [Contributors](#contributors)
@@ -103,31 +103,6 @@ flowchart TD
 
 ---
 
-## Key Characteristics
-
-### Hierarchical Section-Aware Chunking
-Documents are split top-down: page → main section (H1) → subsection (H2) → fine-grained chunk. Every chunk carries `{section, subsection, chunk_id}` metadata. Retrieval is scoped to the exact `(section, subsection)` pairs identified by the analyzer chains, eliminating cross-section noise.
-
-### Multimodal-Capable Retrieval
-Three content modalities are indexed and retrieved:
-- **Text** — section/subsection-aware prose chunks
-- **Structured tables** — converted to Markdown by `pdfplumber`, stored with page-level metadata
-- **Images** — encoded by the CLIP vision encoder; retrieved via CLIP's shared text–image embedding space (a text query vector is compared directly against image vectors)
-
-### Cost-Effective Model Strategy
-| Role | Model | Reason |
-|---|---|---|
-| Query Compiler, Router, Analyzers, Context Compiler | `gpt-4o-mini` | Text-only, low token count, high call frequency |
-| Multimodal Responder | `gpt-5.4` | Vision capability required for image reasoning; called once per turn |
-
-### Stateful Multi-Turn Conversation
-The Query Compiler receives the full `chat_history` on every turn. This allows it to resolve follow-up references (e.g., *"what about the fee?"* → *"What is the fee for SDoC application?"*) without the user re-stating context. The session resets on page refresh; no database persistence is needed.
-
-### Deterministic Sequential Pipeline
-The workflow is a fixed linear chain of five specialized LLM roles plus one rule-based parallel retriever. There is no agent loop, no tool-calling, and no branching except for the UNRELATED guard. This makes the system predictable, debuggable, and straightforward to extend.
-
----
-
 ## Tech Stack
 
 **Backend**
@@ -152,6 +127,31 @@ The workflow is a fixed linear chain of five specialized LLM roles plus one rule
 |---|---|
 | Chat UI | HTML + Vanilla JavaScript |
 | Markdown rendering | `marked.js` (CDN) |
+
+---
+
+## Key Characteristics
+
+### Hierarchical Section-Aware Chunking
+Documents are split top-down: page → main section (H1) → subsection (H2) → fine-grained chunk. Every chunk carries `{section, subsection, chunk_id}` metadata. Retrieval is scoped to the exact `(section, subsection)` pairs identified by the analyzer chains, eliminating cross-section noise.
+
+### Multimodal-Capable Retrieval
+Three content modalities are indexed and retrieved:
+- **Text** — section/subsection-aware prose chunks
+- **Structured tables** — converted to Markdown by `pdfplumber`, stored with page-level metadata
+- **Images** — encoded by the CLIP vision encoder; retrieved via CLIP's shared text–image embedding space (a text query vector is compared directly against image vectors)
+
+### Cost-Effective Model Strategy
+| Role | Model | Reason |
+|---|---|---|
+| Query Compiler, Router, Analyzers, Context Compiler | `gpt-4o-mini` | Text-only, low token count, high call frequency |
+| Multimodal Responder | `gpt-5.4` | Vision capability required for image reasoning; called once per turn |
+
+### Stateful Multi-Turn Conversation
+The Query Compiler receives the full `chat_history` on every turn. This allows it to resolve follow-up references (e.g., *"what about the fee?"* → *"What is the fee for SDoC application?"*) without the user re-stating context. The session resets on page refresh; no database persistence is needed.
+
+### Deterministic Sequential Pipeline
+The workflow is a fixed linear chain of five specialized LLM roles plus one rule-based parallel retriever. There is no agent loop, no tool-calling, and no branching except for the UNRELATED guard. This makes the system predictable, debuggable, and straightforward to extend.
 
 ---
 
