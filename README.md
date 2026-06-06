@@ -247,14 +247,13 @@ The following queries are designed to exercise each capability of the system:
 
 ## Contributors
 
-| Name | 
-|---|---|
-| [@limqing](https://github.com/limqing2004) |
-| [@]() | 
-
+<b>Name</b>
+1. [@limqing](https://github.com/limqing2004) 
+2.
+3.
 
 ---
 
 ## License
 
-This project was developed as part of UCCD3133 Assignment 2. All source documents are publicly available from the Singapore Consumer Product Safety Office.
+All source documents are publicly available from the Singapore Consumer Product Safety Office.
