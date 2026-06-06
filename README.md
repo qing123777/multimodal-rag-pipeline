@@ -236,7 +236,7 @@ The following queries are designed to exercise each capability of the system:
 | Query | Capability demonstrated |
 |---|---|
 | `My name is Steven.` | Session initialisation |
-| `How are you? What can you do for me?` | Greeting handling (out-of-domain) |
+| `How are you? What can you do for me?` | Greeting handling |
 | `What is my name?` | Multi-turn co-reference — short-term memory recall |
 | `What is UTAR?` | Out-of-scope guard — router correctly returns UNRELATED |
 | `What are the list of documents to be included in the Technical File?` | Structured table retrieval |
@@ -248,7 +248,7 @@ The following queries are designed to exercise each capability of the system:
 ## Contributors
 
 <b>Name</b>
-1. [@limqing](https://github.com/limqing2004) 
+1. [lim qing](https://github.com/limqing2004) 
 2.
 3.
 
