@@ -247,12 +247,11 @@ The following queries are designed to exercise each capability of the system:
 
 ## Contributors
 
-| Name | Role |
+| Name | 
 |---|---|
-| [@limqing](https://github.com/limqing2004) | Prompt engineering, ingestion pipeline |
-| *(teammate GitHub username)* | *(their role)* |
+| [@limqing](https://github.com/limqing2004) |
+| [@]() | 
 
-> **Adding a collaborator:** go to your repository → *Settings* → *Collaborators* → *Add people* and search by GitHub username or email. This grants them write access to push and review code directly.
 
 ---
 
