@@ -9,8 +9,8 @@
 2. [Architecture](#architecture)
    - [Phase 1 — Ingestion](#phase-1--ingestion)
    - [Phase 2 — Retrieval](#phase-2--retrieval)
-3. [Key Characteristics](#key-characteristics)
-4. [Tech Stack](#tech-stack)
+3. [Tech Stack](#tech-stack)
+4. [Key Characteristics](#key-characteristics)
 5. [Project Structure](#project-structure)
 6. [Setup & Usage](#setup--usage)
 7. [Demo Queries](#demo-queries)
@@ -103,31 +103,6 @@ flowchart TD
 
 ---
 
-## Key Characteristics
-
-### Hierarchical Section-Aware Chunking
-Documents are split top-down: page → main section (H1) → subsection (H2) → fine-grained chunk. Every chunk carries `{section, subsection, chunk_id}` metadata. Retrieval is scoped to the exact `(section, subsection)` pairs identified by the analyzer chains, eliminating cross-section noise.
-
-### Multimodal-Capable Retrieval
-Three content modalities are indexed and retrieved:
-- **Text** — section/subsection-aware prose chunks
-- **Structured tables** — converted to Markdown by `pdfplumber`, stored with page-level metadata
-- **Images** — encoded by the CLIP vision encoder; retrieved via CLIP's shared text–image embedding space (a text query vector is compared directly against image vectors)
-
-### Cost-Effective Model Strategy
-| Role | Model | Reason |
-|---|---|---|
-| Query Compiler, Router, Analyzers, Context Compiler | `gpt-4o-mini` | Text-only, low token count, high call frequency |
-| Multimodal Responder | `gpt-5.4` | Vision capability required for image reasoning; called once per turn |
-
-### Stateful Multi-Turn Conversation
-The Query Compiler receives the full `chat_history` on every turn. This allows it to resolve follow-up references (e.g., *"what about the fee?"* → *"What is the fee for SDoC application?"*) without the user re-stating context. The session resets on page refresh; no database persistence is needed.
-
-### Deterministic Sequential Pipeline
-The workflow is a fixed linear chain of five specialized LLM roles plus one rule-based parallel retriever. There is no agent loop, no tool-calling, and no branching except for the UNRELATED guard. This makes the system predictable, debuggable, and straightforward to extend.
-
----
-
 ## Tech Stack
 
 **Backend**
@@ -155,6 +130,31 @@ The workflow is a fixed linear chain of five specialized LLM roles plus one rule
 
 ---
 
+## Key Characteristics
+
+### Hierarchical Section-Aware Chunking
+Documents are split top-down: page → main section (H1) → subsection (H2) → fine-grained chunk. Every chunk carries `{section, subsection, chunk_id}` metadata. Retrieval is scoped to the exact `(section, subsection)` pairs identified by the analyzer chains, eliminating cross-section noise.
+
+### Multimodal-Capable Retrieval
+Three content modalities are indexed and retrieved:
+- **Text** — section/subsection-aware prose chunks
+- **Structured tables** — converted to Markdown by `pdfplumber`, stored with page-level metadata
+- **Images** — encoded by the CLIP vision encoder; retrieved via CLIP's shared text–image embedding space (a text query vector is compared directly against image vectors)
+
+### Cost-Effective Model Strategy
+| Role | Model | Reason |
+|---|---|---|
+| Query Compiler, Router, Analyzers, Context Compiler | `gpt-4o-mini` | Text-only, low token count, high call frequency |
+| Multimodal Responder | `gpt-5.4` | Vision capability required for image reasoning; called once per turn |
+
+### Stateful Multi-Turn Conversation
+The Query Compiler receives the full `chat_history` on every turn. This allows it to resolve follow-up references (e.g., *"what about the fee?"* → *"What is the fee for SDoC application?"*) without the user re-stating context. The session resets on page refresh; no database persistence is needed.
+
+### Deterministic Sequential Pipeline
+The workflow is a fixed linear chain of five specialized LLM roles plus one rule-based parallel retriever. There is no agent loop, no tool-calling, and no branching except for the UNRELATED guard. This makes the system predictable, debuggable, and straightforward to extend.
+
+---
+
 ## Project Structure
 
 ```
@@ -162,7 +162,7 @@ The workflow is a fixed linear chain of five specialized LLM roles plus one rule
 ├── RAG_pipeline.py                          # Full backend: ingestion, chains, Assistant class
 ├── main.py                                  # FastAPI server (serves UI + /chat SSE endpoint)
 ├── frontend.html                            # Single-page chat UI
-├── A2_34_.ipynb                             # Development notebook with all unit tests
+├── multimodal_rag_pipeline.ipynb                             # Development notebook with all unit tests
 ├── Data_Ingestion_and_Vector_Storage_Workflow.png  # Ingestion architecture diagram
 ├── requirements.txt                         # Python dependencies
 ├── .gitignore
@@ -236,7 +236,7 @@ The following queries are designed to exercise each capability of the system:
 | Query | Capability demonstrated |
 |---|---|
 | `My name is Steven.` | Session initialisation |
-| `How are you? What can you do for me?` | Greeting handling (out-of-domain) |
+| `How are you? What can you do for me?` | Greeting handling |
 | `What is my name?` | Multi-turn co-reference — short-term memory recall |
 | `What is UTAR?` | Out-of-scope guard — router correctly returns UNRELATED |
 | `What are the list of documents to be included in the Technical File?` | Structured table retrieval |
@@ -247,15 +247,13 @@ The following queries are designed to exercise each capability of the system:
 
 ## Contributors
 
-| Name | Role |
-|---|---|
-| [@limqing](https://github.com/limqing2004) | Prompt engineering, ingestion pipeline |
-| *(teammate GitHub username)* | *(their role)* |
-
-> **Adding a collaborator:** go to your repository → *Settings* → *Collaborators* → *Add people* and search by GitHub username or email. This grants them write access to push and review code directly.
+<b>Name</b>
+1. [Lim Qing](https://github.com/qing123777) 
+2. [Law Ying Yee](https://github.com/YY80813)
+3. [Chong Zhi Cong]()
 
 ---
 
 ## License
 
-This project was developed as part of UCCD3133 Assignment 2. All source documents are publicly available from the Singapore Consumer Product Safety Office.
+All source documents are publicly available from the Singapore Consumer Product Safety Office.
