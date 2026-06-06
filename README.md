@@ -162,7 +162,7 @@ The workflow is a fixed linear chain of five specialized LLM roles plus one rule
 ├── RAG_pipeline.py                          # Full backend: ingestion, chains, Assistant class
 ├── main.py                                  # FastAPI server (serves UI + /chat SSE endpoint)
 ├── frontend.html                            # Single-page chat UI
-├── multimodal-rag-pipeline.ipynb                             # Development notebook with all unit tests
+├── multimodal_rag_pipeline.ipynb                             # Development notebook with all unit tests
 ├── Data_Ingestion_and_Vector_Storage_Workflow.png  # Ingestion architecture diagram
 ├── requirements.txt                         # Python dependencies
 ├── .gitignore
