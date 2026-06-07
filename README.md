@@ -79,22 +79,22 @@ flowchart TD
     CH[("chat_history\n(short-term memory)")]:::store
 
     subgraph PRE["🔍 Pre-Retrieval"]
-        A["① Query Compiler · gpt-4o-mini\nRewrite using chat history → standalone query"]:::proc
-        B["② Query Router · gpt-4o-mini\nPDF_1 · PDF_2 · BOTH · UNRELATED"]:::proc
+        A["① Query Compiler\nRewrite using chat history → standalone query"]:::proc
+        B["② Query Router\nPDF_1 · PDF_2 · BOTH · UNRELATED"]:::proc
     end
 
     subgraph RET["📂 In-Retrieval"]
-        C["③ Analyzer 1 · gpt-4o-mini\nMap query → relevant main sections"]:::proc
-        D["④ Analyzer 2 · gpt-4o-mini\nMap query → relevant subsections"]:::proc
+        C["③ Analyzer 1\nMap query → relevant main sections"]:::proc
+        D["④ Analyzer 2\nMap query → relevant subsections"]:::proc
         E["⑤ Parallel Retriever\nMetadata-filtered ChromaDB · CLIP image search"]:::proc
     end
 
     subgraph POST["🗜️ Post-Retrieval"]
-        F["⑥ Context Compiler · gpt-4o-mini\nFilter · compress retrieved chunks → evidence summary"]:::proc
+        F["⑥ Context Compiler\nFilter · compress retrieved chunks → evidence summary"]:::proc
     end
 
     subgraph GEN["💬 Generation"]
-        G["⑦ Multimodal Responder · gpt-5.4\nGrounded answer from context + images · SSE stream"]:::proc
+        G["⑦ Multimodal Responder\nGrounded answer from context + images · SSE stream"]:::proc
         R["📎 Source References · auto-appended\nPDF · Section · Subsection · Page"]:::ref
     end
 
