@@ -37,31 +37,25 @@ Users interact through a browser-based chat UI. Each query triggers a **determin
 
 Runs **once** on first startup. Results are persisted to disk (ChromaDB + `heading_structure.json`); subsequent startups skip ingestion entirely.
 
-```mermaid
+<u>RAG pipeline diagram</u>
 flowchart TD
-    A[Raw PDFs] --> B["pdf_loader\n─────────────────\nExtract text per page\nExtract images → base64\n(PyPDFLoader + PyMuPDF/fitz)"]
+    classDef proc fill:#f0f4ff,stroke:#4a90d9
+    classDef store fill:#e8f5e9,stroke:#2d6a4f
+    classDef src fill:#4a90d9,color:#fff,stroke:none
 
-    B --> C["split_by_section  ·  H1 level\n─────────────────\nRegex-based main-section detection\nFooters & page numbers stripped\nSection title stored in metadata"]
-
-    C --> D["split_by_section  ·  H2 level\n─────────────────\nRegex-based subsection detection\nSubsection title stored in metadata"]
-
-    D --> E["reconstruct_docs\n─────────────────\nSections with no subsections\nfilled in as subsection = '-'"]
-
-    E --> F["filter_subsections\n─────────────────\nRemove misaligned / noisy chunks\nbased on digit-prefix matching rules"]
-
-    F --> G["RecursiveCharacterTextSplitter\n─────────────────\nchunk_size=1000, overlap=100\nSection & subsection metadata inherited"]
-
-    F --> H["extract_table_docs  (pdfplumber)\n─────────────────\nAll tables extracted as Markdown\nPage-level metadata forward-filled"]
-
-    G --> I[Assign chunk_id per document]
+    A([Raw PDFs]):::src --> B[pdf_loader\nText + Images → base64\nPyPDFLoader + fitz]:::proc
+    B --> C[H1 Split\nRegex · Section-level]:::proc
+    C --> D[H2 Split\nRegex · Subsection-level]:::proc
+    D --> E[reconstruct_docs\nFill sections with no subsections]:::proc
+    E --> F[filter_subsections\nRemove misaligned chunks]:::proc
+    F --> G[Text Chunker\nRecursiveCharacterTextSplitter\nsize=1000 · overlap=100]:::proc
+    F --> H[Table Extractor\npdfplumber → Markdown]:::proc
+    G --> I[Assign chunk_id]:::proc
     H --> I
+    I --> J[("ChromaDB · 2 collections\nText + Table Store\nHuggingFaceEmbeddings · CLIP-ViT-B/32")]:::store
+    B --> K[Image Encoder\nSentenceTransformer · CLIP vision]:::proc
+    K --> L[("ChromaDB · 2 collections\nImage Store\n512-dim pre-computed vectors")]:::store
 
-    I --> J[("ChromaDB  ·  Text store\n(2 collections, one per PDF)\nEmbedded with CLIP-ViT-B/32\nvia HuggingFaceEmbeddings")]
-
-    B --> K["build_image_vector_store\n─────────────────\nDeduplicate by MD5 hash\nImages < 80×80 px discarded\nEncode with CLIP vision encoder"]
-
-    K --> L[("ChromaDB  ·  Image store\n(2 collections, one per PDF)\nPre-computed 512-dim vectors\nBase64 image stored in metadata")]
-```
 
 > The section → subsection → chunk hierarchy is preserved entirely in **metadata** (`section`, `subsection`, `chunk_id`). This enables precise metadata-filtered retrieval downstream and is the core of the *section-aware* design.
 
