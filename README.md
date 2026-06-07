@@ -29,7 +29,7 @@ This project implements a **multimodal section-aware RAG pipeline** over two Sin
 | *CPSA+ Guidebook for Registered Suppliers* | System procedures, application steps, navigation |
 | *Consumer Protection (Safety Requirements) Regulations* | Legal requirements, safety standards, definitions |
 
-Both documents are publicly available from the [Singapore Consumer Product Safety Office](https://www.consumerproductsafety.gov.sg).
+Both documents are publicly available from the <a href="https://www.consumerproductsafety.gov.sg" target="_blank">Singapore Consumer Product Safety Office</a>.
 
 Users interact through a browser-based chat UI. Each query triggers a **deterministic multi-chain pipeline** that routes the query, narrows it down to the relevant document sections, retrieves grounded evidence (text, tables, images) in parallel, compresses the context, and streams a cited, grounded response — all without hallucinating outside the provided documents.
 
