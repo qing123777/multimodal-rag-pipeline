@@ -146,7 +146,8 @@ flowchart TD
 | LLM API | OpenAI (`gpt-4o-mini`, `gpt-5.4`) via `langchain-openai` |
 | Text embeddings | `HuggingFaceEmbeddings(model_name="clip-ViT-B-32")` (`langchain-huggingface`) |
 | Image embeddings | `SentenceTransformer("clip-ViT-B-32")` (`sentence-transformers`) |
-| PDF text extraction | `PyPDFLoader` (`langchain-community`), `PyMuPDF/fitz` |
+| PDF text extraction | `PyPDFLoader` (`langchain-community`) |
+| PDF image extraction | `PyMuPDF` / `fitz` |
 | Table extraction | `pdfplumber` |
 | Image decoding | `Pillow` |
 
@@ -199,7 +200,6 @@ Every response is automatically followed by a **References** block listing the e
 ├── main.py                                  # FastAPI server (serves UI + /chat SSE endpoint)
 ├── frontend.html                            # Single-page chat UI
 ├── multimodal_rag_pipeline.ipynb                             # Development notebook with all unit tests
-├── Data_Ingestion_and_Vector_Storage_Workflow.png  # Ingestion architecture diagram
 ├── requirements.txt                         # Python dependencies
 ├── .gitignore
 │
