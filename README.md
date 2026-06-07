@@ -9,6 +9,8 @@
 2. [Architecture](#architecture)
    - [Phase 1 — Ingestion](#phase-1--ingestion)
    - [Phase 2 — Retrieval](#phase-2--retrieval)
+   - [Chain Roles](#chain-roles)
+   - [Memory Model](#memory-model)
 3. [Tech Stack](#tech-stack)
 4. [Key Characteristics](#key-characteristics)
 5. [Project Structure](#project-structure)
@@ -113,7 +115,7 @@ flowchart TD
     H -->|AIMessage appended| CH
 ```
 
-**Chain roles:**
+### **Chain roles:**
 | # | Chain | Model | Role |
 |---|---|---|---|
 | ① | Query Compiler | `gpt-4o-mini` | Rewrites the raw user input into a formal, standalone retrieval query — resolves co-references (e.g. *"what about the fee?"*) using `chat_history` |
@@ -124,7 +126,7 @@ flowchart TD
 | ⑥ | Context Compiler | `gpt-4o-mini` | Filters, deduplicates, and compresses raw retrieved chunks into a concise, high-signal evidence summary |
 | ⑦ | Multimodal Responder | `gpt-5.4` | Generates a grounded answer from the evidence summary and retrieved images; response is streamed character-by-character via SSE |
 
-**Memory model:**
+### **Memory model:**
 | Component | Scope | Purpose |
 |---|---|---|
 | `chat_history` | Session-wide | Short-term memory — past user/AI turns fed to Query Compiler for co-reference resolution |
