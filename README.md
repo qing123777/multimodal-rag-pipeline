@@ -22,14 +22,16 @@
 
 ## Overview
 
-This project implements a **minimum viable RAG pipeline** over two Singapore government PDF documents:
+This project implements a **multimodal section-aware RAG pipeline** over two Singapore government PDF documents:
 
 | Document | Purpose |
 |---|---|
 | *CPSA+ Guidebook for Registered Suppliers* | System procedures, application steps, navigation |
 | *Consumer Protection (Safety Requirements) Regulations* | Legal requirements, safety standards, definitions |
 
-Users interact through a browser-based chat UI. Each query triggers a **deterministic, sequential multi-chain pipeline** that routes the query, narrows it down to the relevant document sections, retrieves grounded evidence (text, tables, images), compresses the context, and streams a final response — all without hallucinating outside the provided documents.
+Both documents are publicly available from the <a href="https://www.consumerproductsafety.gov.sg" target="_blank">Singapore Consumer Product Safety Office</a>.
+
+Users interact through a browser-based chat UI. Each query triggers a **deterministic multi-chain pipeline** that routes the query, narrows it down to the relevant document sections, retrieves grounded evidence (text, tables, images) in parallel, compresses the context, and streams a cited, grounded response — all without hallucinating outside the provided documents.
 
 ---
 
@@ -199,7 +201,6 @@ Every response is automatically followed by a **References** block listing the e
 ├── RAG_pipeline.py                          # Full backend: ingestion, chains, Assistant class
 ├── main.py                                  # FastAPI server (serves UI + /chat SSE endpoint)
 ├── frontend.html                            # Single-page chat UI
-├── multimodal_rag_pipeline.ipynb                             # Development notebook with all unit tests
 ├── requirements.txt                         # Python dependencies
 ├── .gitignore
 │
@@ -223,8 +224,8 @@ Every response is automatically followed by a **References** block listing the e
 ### 2. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/<repo-name>.git
-cd <repo-name>
+git clone https://github.com/qing123777/multimodal-section-aware-rag.git
+cd multimodal-section-aware-rag
 ```
 
 ### 3. Install dependencies
@@ -289,8 +290,4 @@ The following queries are designed to exercise each capability of the system:
 2. [Law Ying Yee](https://github.com/YY80813)
 3. [Chong Zhi Cong](https://github.com/tetsu19991209-blip)
 
----
 
-## License
-
-All source documents are publicly available from the Singapore Consumer Product Safety Office.
