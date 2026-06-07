@@ -76,6 +76,7 @@ flowchart TD
     classDef guard fill:#fff3e0,stroke:#e67e22,color:#1a1a1a
 
     U([User Query]):::src
+    CH[("chat_history\n(short-term memory)")]:::store
 
     subgraph PRE["🔍 Pre-Retrieval"]
         A["① Query Compiler · gpt-4o-mini\nRewrite using chat history → standalone query"]:::proc
@@ -98,6 +99,7 @@ flowchart TD
     end
 
     U --> A
+    CH -->|past turns| A
     A --> B
     B -->|UNRELATED| Z([Out-of-scope reply]):::guard
     B -->|"PDF_1 / PDF_2 / BOTH"| C
@@ -107,8 +109,19 @@ flowchart TD
     F --> G
     G --> R
     R --> H([Chat UI]):::src
-    H -->|"AIMessage → chat_history (short-term memory)"| U
+    H -->|AIMessage appended| CH
 ```
+
+**Chain roles:**
+| # | Chain | Model | Role |
+|---|---|---|---|
+| ① | Query Compiler | `gpt-4o-mini` | Rewrites the raw user input into a formal, standalone retrieval query — resolves co-references (e.g. *"what about the fee?"*) using `chat_history` |
+| ② | Query Router | `gpt-4o-mini` | Classifies the compiled query to `PDF_1`, `PDF_2`, `BOTH`, or `UNRELATED` to scope retrieval to the correct document(s) |
+| ③ | Analyzer 1 | `gpt-4o-mini` | Maps the query to the relevant **main sections** from the pre-built heading structure index |
+| ④ | Analyzer 2 | `gpt-4o-mini` | Narrows down to the relevant **subsections** within the sections identified in ③ |
+| ⑤ | Parallel Retriever | Rule-based | Fires one metadata-filtered ChromaDB retriever per `(doc, section, subsection)` triple; additionally retrieves images via CLIP text-to-image search |
+| ⑥ | Context Compiler | `gpt-4o-mini` | Filters, deduplicates, and compresses raw retrieved chunks into a concise, high-signal evidence summary |
+| ⑦ | Multimodal Responder | `gpt-5.4` | Generates a grounded answer from the evidence summary and retrieved images; response is streamed character-by-character via SSE |
 
 **Memory model:**
 | Component | Scope | Purpose |
