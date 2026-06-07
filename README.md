@@ -76,7 +76,7 @@ flowchart TD
     classDef guard fill:#fff3e0,stroke:#e67e22,color:#1a1a1a
 
     U([User Query]):::src
-    CH[("chat_history\nshort-term memory\npart of AssistantState")]:::store
+    CH[("chat_history\nshort-term memory\n(part of AssistantState)")]:::store
 
     subgraph PRE["🔍 Pre-Retrieval"]
         A["① Query Compiler\nRewrite using chat history → standalone query"]:::proc
