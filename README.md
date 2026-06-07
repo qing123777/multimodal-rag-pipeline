@@ -238,6 +238,7 @@ The following queries are designed to exercise each capability of the system:
 | `What are the list of documents to be included in the Technical File?` | Structured table retrieval |
 | `What does the CPSA+ dashboard look like after logging in?` | Image retrieval + visual reasoning |
 | `What information is shown on the Allocated Certification Number screen?` | Image retrieval + visual reasoning |
+| **1)** `I am a new supplier who wants to sell controlled goods in Singapore. What are the legal requirements I need to meet, and how do I register my account and submit my first application in CPSA+?` <br><br> **2)** `If I make changes to a controlled good that is already registered, what are the legal requirements regarding re-registration, and how do I update the product details in CPSA+?` | Cross-document retrieval — spans both PDFs (regulatory + procedural) |
 
 ---
 
