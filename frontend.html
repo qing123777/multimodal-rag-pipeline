@@ -80,8 +80,18 @@
       font-size: 0.94rem;
       line-height: 1.65;
       color: #1a1a1a;
-      white-space: pre-wrap;
+      white-space: pre-wrap;   /* preserves newlines in user messages */
       word-break: break-word;
+    }
+    /* AI responses render as markdown — let the parser handle whitespace */
+    .msg-content.ai-content { white-space: normal; }
+
+    /* Token usage line */
+    .token-line {
+      font-size: 0.72rem;
+      color: #aaa;
+      margin-top: 6px;
+      font-style: italic;
     }
 
     /* Render markdown inside .msg-content */
@@ -218,7 +228,6 @@
 
 <header>
   🛡️ Singapore CPS RAG Assistant
-  <span class="badge">BETA</span>
 </header>
 
 <div id="conversation">
@@ -295,36 +304,53 @@
     statusArea.className = 'status-area';
 
     const content = document.createElement('div');
-    content.className = 'msg-content cursor';
+    content.className = 'msg-content ai-content cursor';
+
+    const tokenLine = document.createElement('div');
+    tokenLine.className = 'token-line';
 
     block.appendChild(label);
     block.appendChild(statusArea);
     block.appendChild(content);
+    block.appendChild(tokenLine);
     conversation.appendChild(block);
     scrollToBottom();
 
     let rawText = '';
+    let renderPending = false;
 
     return {
       addStatus(text) {
         const line = document.createElement('div');
         line.className = 'status-line';
-        line.innerHTML = text;   // HTML from the server (contains <sub> tags)
+        line.innerHTML = text;
         statusArea.appendChild(line);
         scrollToBottom();
       },
       appendText(chunk) {
         rawText += chunk;
-        content.textContent = rawText;   // plain text while streaming
-        scrollToBottom();
+        // Batch markdown re-renders to once per animation frame (~16ms)
+        // so streaming feels smooth without large gap artifacts
+        if (!renderPending) {
+          renderPending = true;
+          requestAnimationFrame(() => {
+            content.innerHTML = marked.parse(rawText);
+            renderPending = false;
+            scrollToBottom();
+          });
+        }
       },
       finalize() {
         content.classList.remove('cursor');
         if (rawText.trim()) {
-          // Render accumulated text as Markdown
           content.innerHTML = marked.parse(rawText);
         }
         scrollToBottom();
+      },
+      showTokens(data) {
+        let text = `tokens: prompt=${data.prompt}, completion=${data.completion}, total=${data.total}`;
+        if (data.cost) text += `, cost=$${data.cost}`;
+        tokenLine.textContent = text;
       },
     };
   }
@@ -381,6 +407,12 @@
         try {
           parsed = JSON.parse(raw);
         } catch {
+          continue;
+        }
+
+        // Token usage event — show below response, then wait for [DONE]
+        if (parsed.type === 'token_usage') {
+          aiBlock.showTokens(parsed);
           continue;
         }
 

@@ -60,12 +60,21 @@ def chat(request: ChatRequest):
         finally:
             main_loop.call_soon_threadsafe(queue.put_nowait, None)  # sentinel
 
-    # We need the running event loop; use a sync generator approach instead
     def sync_generator():
-        # Collect chunks from the blocking generator and yield SSE-formatted strings
         for chunk in assistant.stream(request.message):
             data = json.dumps({"chunk": chunk}, ensure_ascii=False)
             yield f"data: {data}\n\n"
+        # Token usage is accumulated inside Assistant.stream() via explicit callbacks
+        u = assistant.last_token_usage
+        cost = u.get("cost")
+        usage = {
+            "type":       "token_usage",
+            "prompt":     u["prompt"],
+            "completion": u["completion"],
+            "total":      u["total"],
+            "cost":       f"{cost:.6f}" if cost is not None else None,
+        }
+        yield f"data: {json.dumps(usage)}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(
@@ -83,4 +92,18 @@ def chat(request: ChatRequest):
 
 if __name__ == "__main__":
     import uvicorn
+    import webbrowser
+    import urllib.request
+
+    def open_when_ready():
+        """Poll the server every second until it responds, then open the browser."""
+        while True:
+            try:
+                urllib.request.urlopen("http://localhost:8000", timeout=1)
+                webbrowser.open("http://localhost:8000")
+                break
+            except Exception:
+                threading.Event().wait(1)
+
+    threading.Thread(target=open_when_ready, daemon=True).start()
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
