@@ -224,8 +224,8 @@ Every response is automatically followed by a **References** block listing the e
 ### 2. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/<repo-name>.git
-cd <repo-name>
+git clone https://github.com/qing123777/multimodal-section-aware-rag.git
+cd multimodal-section-aware-rag
 ```
 
 ### 3. Install dependencies
