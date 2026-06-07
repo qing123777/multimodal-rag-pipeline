@@ -7,6 +7,8 @@ import hashlib
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Tuple, Iterator, Pattern
+from dotenv import load_dotenv
+from langchain_community.callbacks.openai_info import OpenAICallbackHandler
 from PIL import Image
 import fitz
 import pdfplumber
@@ -23,7 +25,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 from sentence_transformers import SentenceTransformer
 
-# OPENAI_API_KEY must be set in environment before importing this module
+# Load OPENAI_API_KEY from .env file
+load_dotenv()
 model = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.0)
 str_parser = StrOutputParser()
 
@@ -246,7 +249,11 @@ def build_image_vector_store(chunks: List[Document], chroma_img, source_label: s
                     ids=[f"{source_label}_img_{count}"],
                     embeddings=[image_vector],
                     documents=[f"image {count} from {source_label}"],
-                    metadatas=[{"source_label": source_label, "base64_image": b64}],
+                    metadatas=[{
+                        "source_label": source_label,
+                        "base64_image": b64,
+                        "section":      chunk.metadata.get("section", ""),
+                    }],
                 )
                 count += 1
             except Exception as e:
@@ -721,9 +728,12 @@ def run_parallel_retriever(state: "AssistantState", k: int = 3) -> List[dict]:
             b64 = meta.get("base64_image", "")
             if b64:
                 retrieved_images.append({
-                    "base64":  b64,
-                    "section": meta.get("section", ""),
-                    "source":  meta.get("source", ""),
+                    "base64":       b64,
+                    "section":      meta.get("section", ""),
+                    "source":       meta.get("source", ""),
+                    "source_label": meta.get("source_label") or (
+                        "PDF_1" if "1" in doc_label else "PDF_2"
+                    ),
                 })
     state.working_memory.retrieved_images = retrieved_images
     return raw_context
@@ -830,10 +840,50 @@ def _multimodal_responder_fn(state: "AssistantState") -> AIMessage:
         max_completion_tokens=1000,
         temperature=0.0,
     )
+    # Store raw usage so Assistant.stream() can accumulate totals
+    usage = getattr(resp, "usage", None)
+    state._responder_prompt_tokens     = getattr(usage, "prompt_tokens",     0) if usage else 0
+    state._responder_completion_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+    state._responder_total_tokens      = getattr(usage, "total_tokens",      0) if usage else 0
     return AIMessage(content=resp.choices[0].message.content)
 
 
 responder_chain = RunnableLambda(_multimodal_responder_fn)
+
+
+def _build_references(docs: List[Document], images: List[dict]) -> str:
+    seen: set = set()
+    lines: List[str] = []
+    for doc in docs:
+        m = doc.metadata
+        label = m.get("source_label") or (
+            "PDF_1" if "Guidebook" in m.get("source", "") else "PDF_2"
+        )
+        sec = m.get("section", "")
+        sub = m.get("subsection", "")
+        pg  = m.get("page")
+        key = (label, sec, sub)
+        if key in seen or not sec:
+            continue
+        seen.add(key)
+        ref = f"- **{label}** — {sec}"
+        if sub and sub != "-":
+            ref += f" › {sub}"
+        if pg is not None:
+            ref += f" (p. {pg + 1})"
+        lines.append(ref)
+    for img in images:
+        label = img.get("source_label", "")
+        sec   = img.get("section", "")
+        key   = (label, sec, "img")
+        if key in seen:
+            continue
+        seen.add(key)
+        ref = f"- **{label}** [Image]"
+        if sec:
+            ref += f" — {sec}"
+        lines.append(ref)
+    return ("\n\n---\n**References**\n" + "\n".join(lines) + "\n") if lines else ""
 
 
 # ─────────────────────────────────────────────────────────────
@@ -845,16 +895,24 @@ class Assistant(Runnable):
         super().__init__()
         self.model = model
         self.state = state
+        self.last_token_usage: Dict[str, Any] = {
+            "prompt": 0, "completion": 0, "total": 0, "cost": None
+        }
 
     def stream(self, input: str, config: Optional[dict] = None) -> Iterator[str]:
         self.state.reset()
         self.state.add_user_query(input)
 
+        # Explicit callback handler — passed to every LangChain chain call
+        # so token counts are captured regardless of LangChain version
+        cb = OpenAICallbackHandler()
+        chain_cfg = {"callbacks": [cb]}
+
         yield "\n\n<sub>⚙️ Compiling query...</sub>\n\n"
-        self.state.working_memory.compiled_query = query_compiler_chain.invoke(self.state)
+        self.state.working_memory.compiled_query = query_compiler_chain.invoke(self.state, config=chain_cfg)
 
         yield "\n\n<sub>⚙️ Routing query to the correct document...</sub>\n\n"
-        self.state.working_memory.route = query_router_chain.invoke(self.state).strip()
+        self.state.working_memory.route = query_router_chain.invoke(self.state, config=chain_cfg).strip()
         self.state.working_memory.target_doc = self.state.working_memory.route
 
         if self.state.working_memory.route == "UNRELATED":
@@ -866,17 +924,17 @@ class Assistant(Runnable):
             )
         else:
             yield "\n\n<sub>⚙️ Identifying relevant main sections...</sub>\n\n"
-            self.state.working_memory.relevant_sections = analyzer_chain_1.invoke(self.state) or []
+            self.state.working_memory.relevant_sections = analyzer_chain_1.invoke(self.state, config=chain_cfg) or []
 
             if self.state.working_memory.relevant_sections:
                 yield "\n\n<sub>⚙️ Identifying relevant subsections...</sub>\n\n"
-                self.state.working_memory.relevant_subsections = analyzer_chain_2.invoke(self.state) or []
+                self.state.working_memory.relevant_subsections = analyzer_chain_2.invoke(self.state, config=chain_cfg) or []
 
                 yield "\n\n<sub>⚙️ Retrieving relevant chunks...</sub>\n\n"
                 self.state.working_memory.raw_context = run_parallel_retriever(self.state)
 
                 yield "\n\n<sub>💬 Finalizing retrieved evidence...</sub>\n\n"
-                self.state.working_memory.compiled_context = context_compiler_chain.invoke(self.state)
+                self.state.working_memory.compiled_context = context_compiler_chain.invoke(self.state, config=chain_cfg)
             else:
                 self.state.working_memory.relevant_subsections = []
                 self.state.working_memory.raw_context = []
@@ -896,8 +954,27 @@ class Assistant(Runnable):
         for char in final_text:
             yield char
 
+        refs = _build_references(
+            self.state.working_memory.retrieved_docs,
+            self.state.working_memory.retrieved_images,
+        )
+        if refs:
+            yield refs
+
         if final_text.strip():
             self.state.add_ai_response(final_text.strip())
+
+        # Accumulate: LangChain chains (via cb) + raw OpenAI responder (via resp.usage)
+        responder_prompt     = getattr(self.state, "_responder_prompt_tokens",     0)
+        responder_completion = getattr(self.state, "_responder_completion_tokens", 0)
+        responder_total      = getattr(self.state, "_responder_total_tokens",      0)
+        cost = getattr(cb, "total_cost", None)
+        self.last_token_usage = {
+            "prompt":     cb.prompt_tokens     + responder_prompt,
+            "completion": cb.completion_tokens + responder_completion,
+            "total":      cb.total_tokens      + responder_total,
+            "cost":       cost,
+        }
 
     def invoke(self, input: str, config: Optional[dict] = None, **kwargs: Any) -> AIMessage:
         for _ in self.stream(input, config=config):
@@ -912,11 +989,11 @@ class Assistant(Runnable):
 # ─────────────────────────────────────────────────────────────
 
 def initialize_rag(
-    pdf_path1: str = "CPSA+_Guidebook_for_Registered_Suppliers.pdf",
-    pdf_path2: str = "Consumer_Protection_Safety_Requirements_Regulations.pdf",
-    text_db_path: str = "./my_text_db",
-    image_db_path: str = "./my_image_db",
-    heading_cache: str = "./heading_structure.json",
+    pdf_path1: str = None,
+    pdf_path2: str = None,
+    text_db_path: str = None,
+    image_db_path: str = None,
+    heading_cache: str = None,
 ) -> Assistant:
     """
     Build or reload the RAG pipeline.
@@ -924,6 +1001,14 @@ def initialize_rag(
     On subsequent runs it loads from disk instantly.
     """
     global chroma_vs_1, chroma_vs_2, chroma_img_1, chroma_img_2, clip_model
+
+    # Resolve all paths relative to this script's directory
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    if pdf_path1    is None: pdf_path1     = os.path.join(BASE_DIR, "CPSA+_Guidebook_for_Registered_Suppliers.pdf")
+    if pdf_path2    is None: pdf_path2     = os.path.join(BASE_DIR, "Consumer_Protection_Safety_Requirements_Regulations.pdf")
+    if text_db_path is None: text_db_path  = os.path.join(BASE_DIR, "my_text_db")
+    if image_db_path is None: image_db_path = os.path.join(BASE_DIR, "my_image_db")
+    if heading_cache is None: heading_cache = os.path.join(BASE_DIR, "heading_structure.json")
 
     print("Loading embedding models...")
     embedding_model = HuggingFaceEmbeddings(model_name="clip-ViT-B-32")
