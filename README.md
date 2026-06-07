@@ -65,30 +65,49 @@ flowchart TD
 
 ### Phase 2 — Retrieval
 
-Triggered on every user message. The pipeline is **strictly sequential** — each chain's output becomes the next chain's input.
+Triggered on every user message. The pipeline runs through four stages — each stage's output feeds the next.
 
 ```mermaid
 flowchart TD
-    U([User Query]) --> A
+    classDef proc  fill:#f0f4ff,stroke:#4a90d9,color:#1a1a1a
+    classDef store fill:#e8f5e9,stroke:#2d6a4f,color:#1a1a1a
+    classDef src   fill:#4a90d9,color:#fff,stroke:none
+    classDef ref   fill:#f3e5f5,stroke:#8e44ad,color:#1a1a1a
+    classDef guard fill:#fff3e0,stroke:#e67e22,color:#1a1a1a
 
-    A["① Query Compiler Chain\n─────────────────\ngpt-4o-mini\nRewrite informal / incomplete query\ninto a standalone retrieval query\nusing chat history for co-reference"]
+    U([User Query]):::src
 
-    A --> B["② Query Router Chain\n─────────────────\ngpt-4o-mini\nClassify: PDF_1 · PDF_2 · BOTH · UNRELATED"]
+    subgraph PRE["🔍 Pre-Retrieval"]
+        A["① Query Compiler · gpt-4o-mini\nRewrite using chat history → standalone query"]:::proc
+        B["② Query Router · gpt-4o-mini\nPDF_1 · PDF_2 · BOTH · UNRELATED"]:::proc
+    end
 
-    B -->|UNRELATED| Z([Out-of-scope reply])
+    subgraph RET["📂 Retrieval"]
+        C["③ Analyzer 1 · gpt-4o-mini\nMap query → relevant main sections"]:::proc
+        D["④ Analyzer 2 · gpt-4o-mini\nMap query → relevant subsections"]:::proc
+        E["⑤ Parallel Retriever\nMetadata-filtered ChromaDB · CLIP image search"]:::proc
+    end
 
-    B -->|PDF_1 / PDF_2 / BOTH| C["③ Analyzer Chain 1\n─────────────────\ngpt-4o-mini\nMap query → relevant main sections\nfrom heading structure index"]
+    subgraph POST["🗜️ Post-Retrieval"]
+        F["⑥ Context Compiler · gpt-4o-mini\nFilter · compress retrieved chunks → evidence summary"]:::proc
+    end
 
-    C --> D["④ Analyzer Chain 2\n─────────────────\ngpt-4o-mini\nMap query → relevant subsections\nwithin the identified sections"]
+    subgraph GEN["💬 Generation"]
+        G["⑦ Multimodal Responder · gpt-5.4\nGrounded answer from context + images · SSE stream"]:::proc
+        R["📎 Source References · auto-appended\nPDF · Section · Subsection · Page"]:::ref
+    end
 
-    D --> E["⑤ Parallel Retriever\n─────────────────\nOne ChromaDB retriever per\n(doc, section, subsection) pair\nMetadata-filtered similarity search\nImage retrieval via CLIP text encoder"]
-
-    E --> F["⑥ Context Compiler Chain\n─────────────────\ngpt-4o-mini\nFilter · compress · structure\nraw retrieved chunks into\nhigh-signal evidence summary"]
-
-    F --> G["⑦ Multimodal Responder\n─────────────────\ngpt-5.4\nGrounded answer from context + images\nStreamed character by character"]
-
-    G --> H([Streamed SSE → HTML frontend])
-    H -->|"AIMessage saved to chat_history\n(short-term memory)"| U
+    U --> A
+    A --> B
+    B -->|UNRELATED| Z([Out-of-scope reply]):::guard
+    B -->|"PDF_1 / PDF_2 / BOTH"| C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> R
+    R --> H([Chat UI]):::src
+    H -->|"AIMessage → chat_history (short-term memory)"| U
 ```
 
 **Memory model:**
