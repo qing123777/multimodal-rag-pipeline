@@ -83,6 +83,7 @@ flowchart TD
     subgraph PRE["🔍 Pre-Retrieval"]
         A["① Query Compiler\nRewrite using chat history → standalone query"]:::proc
         B["② Query Router\nPDF_1 · PDF_2 · BOTH · UNRELATED"]:::proc
+        DEC{"Is query related\nto existing PDFs?"}:::guard
     end
 
     subgraph RET["📂 In-Retrieval"]
@@ -103,8 +104,9 @@ flowchart TD
     U --> A
     CH -->|past turns| A
     A --> B
-    B -->|UNRELATED| Z([Out-of-scope reply]):::guard
-    B -->|"PDF_1 / PDF_2 / BOTH"| C
+    B --> DEC
+    DEC -->|"True · PDF_1 / PDF_2 / BOTH"| C
+    DEC -->|"False · UNRELATED"| Z([Out-of-scope reply]):::guard
     Z --> H
     C --> D
     D --> E
