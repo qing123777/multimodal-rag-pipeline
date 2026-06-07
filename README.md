@@ -83,7 +83,7 @@ flowchart TD
         B["② Query Router · gpt-4o-mini\nPDF_1 · PDF_2 · BOTH · UNRELATED"]:::proc
     end
 
-    subgraph RET["📂 Retrieval"]
+    subgraph RET["📂 In-Retrieval"]
         C["③ Analyzer 1 · gpt-4o-mini\nMap query → relevant main sections"]:::proc
         D["④ Analyzer 2 · gpt-4o-mini\nMap query → relevant subsections"]:::proc
         E["⑤ Parallel Retriever\nMetadata-filtered ChromaDB · CLIP image search"]:::proc
