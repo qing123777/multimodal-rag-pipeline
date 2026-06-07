@@ -38,6 +38,8 @@ Users interact through a browser-based chat UI. Each query triggers a **determin
 Runs **once** on first startup. Results are persisted to disk (ChromaDB + `heading_structure.json`); subsequent startups skip ingestion entirely.
 
 <u>RAG pipeline diagram</u>
+
+```mermaid
 flowchart TD
     classDef proc fill:#f0f4ff,stroke:#4a90d9
     classDef store fill:#e8f5e9,stroke:#2d6a4f
@@ -55,7 +57,7 @@ flowchart TD
     I --> J[("ChromaDB · 2 collections\nText + Table Store\nHuggingFaceEmbeddings · CLIP-ViT-B/32")]:::store
     B --> K[Image Encoder\nSentenceTransformer · CLIP vision]:::proc
     K --> L[("ChromaDB · 2 collections\nImage Store\n512-dim pre-computed vectors")]:::store
-
+```
 
 > The section → subsection → chunk hierarchy is preserved entirely in **metadata** (`section`, `subsection`, `chunk_id`). This enables precise metadata-filtered retrieval downstream and is the core of the *section-aware* design.
 
