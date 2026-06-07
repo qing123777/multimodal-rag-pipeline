@@ -1,6 +1,6 @@
 # Multimodal Section-Aware RAG Pipeline
 
-> A **Retrieval-Augmented Generation (RAG)** system for Singapore Consumer Product Safety documents, featuring hierarchical section-aware chunking, multimodal retrieval (text, image, table), source-referenced responses, and a stateful multi-turn chat interface served over a FastAPI backend.
+> A **Retrieval-Augmented Generation (RAG)** system for Singapore Consumer Product Safety pdf documents, featuring hierarchical section-aware chunking, multimodal retrieval (text, image, table), source-referenced responses, and a stateful multi-turn chat interface served over a FastAPI backend.
 
 ---
 
