@@ -41,8 +41,8 @@ Runs **once** on first startup. Results are persisted to disk (ChromaDB + `headi
 
 ```mermaid
 flowchart TD
-    classDef proc fill:#f0f4ff,stroke:#4a90d9
-    classDef store fill:#e8f5e9,stroke:#2d6a4f
+    classDef proc fill:#f0f4ff,stroke:#4a90d9,color:#1a1a1a
+    classDef store fill:#e8f5e9,stroke:#2d6a4f,color:#1a1a1a
     classDef src fill:#4a90d9,color:#fff,stroke:none
 
     A([Raw PDFs]):::src --> B[pdf_loader\nText + Images → base64\nPyPDFLoader + fitz]:::proc
