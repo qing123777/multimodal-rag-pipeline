@@ -37,7 +37,7 @@ Users interact through a browser-based chat UI. Each query triggers a **determin
 
 Runs **once** on first startup. Results are persisted to disk (ChromaDB + `heading_structure.json`); subsequent startups skip ingestion entirely.
 
-<u>RAG pipeline diagram</u>
+<u>**RAG pipeline diagram**</u>
 
 ```mermaid
 flowchart TD
