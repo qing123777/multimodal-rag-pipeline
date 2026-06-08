@@ -262,7 +262,7 @@ python main.py
 
 On **first run**, the ingestion pipeline will execute automatically (typically 5–15 minutes depending on hardware). Subsequent starts load from the persisted ChromaDB stores and are near-instant.
 
-Open `http://localhost:8000` in your browser.
+The UI will open automatically in your default browser once the pipeline is ready. Enjoy!
 
 ---
 
