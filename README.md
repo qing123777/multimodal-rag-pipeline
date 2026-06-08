@@ -1,6 +1,6 @@
 # Multimodal Section-Aware RAG Pipeline
 
-> A **Retrieval-Augmented Generation (RAG)** system for Singapore Consumer Product Safety pdf documents, featuring hierarchical section-aware chunking, multimodal retrieval (text, image, table), source-referenced responses, and a stateful multi-turn chat interface served over a FastAPI backend.
+> A full-stack **Retrieval-Augmented Generation (RAG)** system for Singapore Consumer Product Safety pdf documents, featuring hierarchical section-aware chunking, multimodal retrieval (text, image, table), source-referenced responses, and a stateful multi-turn chat interface served over a FastAPI backend.
 
 ---
 
@@ -120,7 +120,7 @@ flowchart TD
 ```
 
 ### **Chain roles:**
-| # | Chain | Model | Role |
+| # | Chain/Component | Model | Role |
 |---|---|---|---|
 | ① | Query Compiler | `gpt-4o-mini` | Rewrites the raw user input into a formal, standalone retrieval query — resolves co-references (e.g. *"what about the fee?"*) using `chat_history` |
 | ② | Query Router | `gpt-4o-mini` | Classifies the compiled query to `PDF_1`, `PDF_2`, `BOTH`, or `UNRELATED` to scope retrieval to the correct document(s) |
@@ -169,7 +169,7 @@ flowchart TD
 ## Key Characteristics
 
 ### 1. Hierarchical Section-Aware Chunking
-Documents are split top-down: page → main section (H1) → subsection (H2) → fine-grained chunk. Every chunk carries `{section, subsection, chunk_id}` metadata. Retrieval is scoped to the exact `(section, subsection)` pairs identified by the analyzer chains, eliminating cross-section noise.
+Documents are split top-down: page → main section heading (H1) → subsection heading (H2) → fine-grained chunk. Every chunk carries section, subsection, and chunk_id metadata. At query time, the analyzer chains identify the exact (section, subsection) pairs relevant to the query, and retrieval is scoped to those pairs only — so a query about "SDoC fees" retrieves chunks from the SDoC section exclusively, not every chunk that mentions the word "fee" across the entire document.
 
 ### 2. Multimodal-Capable Retrieval
 Three content modalities are indexed and retrieved:
@@ -184,10 +184,10 @@ Three content modalities are indexed and retrieved:
 | Multimodal Responder | `gpt-5.4` | Vision capability required for image reasoning; called once per turn |
 
 ### 4. Stateful Multi-Turn Conversation
-The Query Compiler receives the full `chat_history` on every turn. This allows it to resolve follow-up references (e.g., *"what about the fee?"* → *"What is the fee for SDoC application?"*) without the user re-stating context. The session resets on page refresh; no database persistence is needed.
+The Query Compiler receives the full `chat_history` on every turn. This allows it to resolve follow-up references (e.g., *"what about the fee?"* → *"What is the fee for SDoC application?"*) without the user re-stating context. The session resets on page refresh; no database persistence is applied.
 
 ### 5. Deterministic Sequential Pipeline
-The workflow is a fixed linear chain of five specialized LLM roles plus one rule-based parallel retriever. There is no agent loop, no tool-calling, and no branching except for the UNRELATED guard. This makes the system predictable, debuggable, and straightforward to extend.
+The workflow is a fixed sequential pipeline of six specialized chains plus one rule-based parallel retriever. There is no agent loop and no tool-calling. Branching occurs only at one guard point: the UNRELATED route (skips retrieval entirely). Outside this guard, every step executes deterministically in order, making the system predictable, debuggable, and straightforward to extend.
 
 ### 6. Grounded Source References
 Every response is automatically followed by a **References** block listing the exact source document, main section, subsection, and page number of every retrieved chunk used to construct the answer. Retrieved images are similarly attributed with their source label and section. This allows users to verify any claim against the original PDFs without manual searching, and reinforces the system's strictly grounded, no-hallucination design.
