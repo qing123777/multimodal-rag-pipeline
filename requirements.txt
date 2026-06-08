@@ -16,4 +16,5 @@ pymupdf
 pdfplumber
 pypdf
 gdown
+python-dotenv
 pydantic
