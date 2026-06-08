@@ -360,6 +360,8 @@ Instructions:
 - If the query is about fees or deadlines, specify the exact context.
 - Output ONE clear sentence only.
 - Do NOT answer the question; only rewrite it as a retrieval query.
+- If the query is a greeting, personal statement, or clearly unrelated to Singapore Consumer Product Safety,
+  output it UNCHANGED. Do NOT force it into a domain query.
 
 Examples:
 User query: hello, I dont know how to use SDOC application?
@@ -384,6 +386,15 @@ Rewritten query: What is the fee for SDoC application in the CPSA+ system?
 User query: how long does it take?
 Past queries: Tell me about SDoC renewal
 Rewritten query: What is the processing time for SDoC renewal in the CPSA+ system?
+
+User query: My name is Steven.
+Rewritten query: My name is Steven.
+
+User query: Hello! How are you?
+Rewritten query: Hello! How are you?
+
+User query: What is the capital of France?
+Rewritten query: What is the capital of France?
 """
 
 query_compiler_prompt = ChatPromptTemplate.from_messages([
@@ -436,7 +447,24 @@ Routing rules:
   * The query is NOT about Singapore Consumer Product Safety
   * OR it does not relate to CPSA+, controlled goods, CoC, SDoC, SAFETY Mark, or regulations
   * OR it is a general question (e.g., weather, coding, math, personal advice, etc.)
+  * OR it is a greeting, personal statement, or introduction (e.g., "My name is X", "Hello", "How are you")
   * OR the intent cannot be answered using the provided documents
+
+Examples:
+Query: My name is Steven.
+Output: UNRELATED
+
+Query: Hello! How are you?
+Output: UNRELATED
+
+Query: What is the capital of France?
+Output: UNRELATED
+
+Query: How do I log into CPSA+?
+Output: PDF_1
+
+Query: What are the safety standards for high-risk controlled goods?
+Output: PDF_2
 
 Output ONLY one of these exact strings:
 PDF_1
@@ -718,12 +746,21 @@ def run_parallel_retriever(state: "AssistantState", k: int = 3) -> List[dict]:
             continue
         query_vector = clip_model.encode(query).tolist()
         relevant_sections = state.working_memory.relevant_sections or []
+        n_results = min(2, img_vs._collection.count())
+
+        # Try section-filtered search first; fall back to unfiltered if no results
         results = img_vs._collection.query(
             query_embeddings=[query_vector],
-            n_results=min(2, img_vs._collection.count()),
+            n_results=n_results,
             where={"section": {"$in": relevant_sections}} if relevant_sections else None,
             include=["metadatas", "distances"],
         )
+        if not results["metadatas"][0]:
+            results = img_vs._collection.query(
+                query_embeddings=[query_vector],
+                n_results=n_results,
+                include=["metadatas", "distances"],
+            )
         for meta in results["metadatas"][0]:
             b64 = meta.get("base64_image", "")
             if b64:
@@ -811,7 +848,13 @@ def _multimodal_responder_fn(state: "AssistantState") -> AIMessage:
         "content": (
             "You are a retrieval-based assistant for Singapore Consumer Product Safety documents.\n"
             "Answer ONLY from the provided context and images. Do not use outside knowledge.\n"
-            "If an image is provided, describe what you see and incorporate it into your answer."
+            "If an image is provided, describe what you see and incorporate it into your answer.\n\n"
+            "Special cases — handle these BEFORE checking the context:\n"
+            "- If the user is greeting you (e.g. 'Hello', 'Hi', 'How are you'), respond warmly and briefly "
+            "introduce what you can help with regarding Singapore Consumer Product Safety.\n"
+            "- If the user is introducing themselves or sharing their name (e.g. 'My name is Steven'), "
+            "acknowledge them warmly by name, then briefly explain what topics you can assist with.\n"
+            "- For these cases, do NOT say the question is unrelated — simply respond naturally and helpfully."
         ),
     }]
 
@@ -942,11 +985,11 @@ class Assistant(Runnable):
                     "No relevant information was found in the provided documents."
                 )
 
-        yield "<br>"
-
         n_imgs = len(self.state.working_memory.retrieved_images or [])
         if n_imgs:
             yield f"\n\n<sub>🖼️ Reasoning over {n_imgs} image(s)...</sub>\n\n"
+
+        yield "<br>"
 
         result = responder_chain.invoke(self.state)
         final_text = result.content if hasattr(result, "content") else str(result)
@@ -1024,21 +1067,30 @@ def initialize_rag(
         embedding_function=embedding_model,
         persist_directory=text_db_path,
     )
-    chroma_img_1 = Chroma(collection_name="image_vectors_pdf1_v2", persist_directory=image_db_path)
-    chroma_img_2 = Chroma(collection_name="image_vectors_pdf2_v2", persist_directory=image_db_path)
+    chroma_img_1 = Chroma(collection_name="image_vectors_pdf1_v3", persist_directory=image_db_path)
+    chroma_img_2 = Chroma(collection_name="image_vectors_pdf2_v3", persist_directory=image_db_path)
+
+    h1_pattern_pdf1 = re.compile(r'^(?!.*[_-])[1-9]\.\s+(?!.*\.{3,}\s*\d+$)[A-Za-z"&:;().,].*')
+    h1_pattern_pdf2 = re.compile(r'^[1-9]\.0\s+(?!.*\.{3,})[A-Za-z].*')
 
     # Use cached heading structure + existing vector stores if available
     if os.path.exists(heading_cache) and chroma_vs_1._collection.count() > 0:
         print("Loading from existing vector stores...")
         with open(heading_cache, encoding="utf-8") as f:
             heading_structure = json.load(f)
+
+        # Rebuild image store independently if empty (e.g. first run after a version bump)
+        if chroma_img_1._collection.count() == 0:
+            print("Image store empty — rebuilding image vectors only (text store preserved)...")
+            docs1_img = splitting_section_pipeline(pdf_path1, h1_pattern_pdf1, 1)
+            docs2_img = splitting_section_pipeline(pdf_path2, h1_pattern_pdf2, 2)
+            build_image_vector_store(docs1_img, chroma_img_1, "PDF_1")
+            build_image_vector_store(docs2_img, chroma_img_2, "PDF_2")
+            print("Image store rebuilt.")
     else:
         print("Running full ingestion pipeline (this may take several minutes)...")
 
-        # Section-level split
-        h1_pattern_pdf1 = re.compile(r'^(?!.*[_-])[1-9]\.\s+(?!.*\.{3,}\s*\d+$)[A-Za-z"&:;().,].*')
-        h1_pattern_pdf2 = re.compile(r'^[1-9]\.0\s+(?!.*\.{3,})[A-Za-z].*')
-
+        # Section-level split (h1_pattern defined above, shared with image-only rebuild path)
         parallel_section = RunnableParallel(
             doc1=RunnableLambda(lambda x: splitting_section_pipeline(x["doc1"]["pdf_path"], x["doc1"]["h1_pattern"], 1)),
             doc2=RunnableLambda(lambda x: splitting_section_pipeline(x["doc2"]["pdf_path"], x["doc2"]["h1_pattern"], 2)),
