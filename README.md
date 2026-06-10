@@ -6,8 +6,8 @@
 ![OpenAI](https://img.shields.io/badge/OpenAI-gpt--4o--mini%20%7C%20gpt--5.4-412991?logo=openai&logoColor=white)
 ![ChromaDB](https://img.shields.io/badge/ChromaDB-vector%20store-FF6F61)
 ![HuggingFace](https://img.shields.io/badge/HuggingFace-CLIP%20ViT--B%2F32-FFD21E?logo=huggingface&logoColor=black)
-![RAG](https://img.shields.io/badge/Architecture-RAG%20Pipeline-4a90d9)
-![Multimodal](https://img.shields.io/badge/Retrieval-Multimodal%20%28text%20%7C%20table%20%7C%20image%29-8e44ad)
+![RAG](https://img.shields.io/badge/RAG%20Pipeline-4a90d9)
+![Multimodal](https://img.shields.io/badge/Multimodal%20%28text%20%7C%20table%20%7C%20image%29-8e44ad)
 
 > A full-stack **Retrieval-Augmented Generation (RAG)** system for Singapore Consumer Product Safety pdf documents, featuring hierarchical section-aware chunking, multimodal retrieval (text, image, table), source-referenced responses, and a stateful multi-turn chat interface served over a FastAPI backend.
 
