@@ -180,25 +180,28 @@ flowchart TD
 ### 1. Hierarchical Section-Aware Chunking
 Documents are split top-down: page → main section heading (H1) → subsection heading (H2) → fine-grained chunk. Every chunk carries section, subsection, and chunk_id metadata. At query time, the analyzer chains identify the exact (section, subsection) pairs relevant to the query, and retrieval is scoped to those pairs only — so a query about "SDoC fees" retrieves chunks from the SDoC section exclusively, not every chunk that mentions the word "fee" across the entire document.
 
-### 2. Multimodal-Capable Retrieval
+### 2. Hierarchical Metadata-Filtered Retrieval
+Rather than searching the full vector store using query in each session, the pipeline applies a two-level **metadata filter** before any vector search: Analyzer 1 maps the query to relevant main sections (H1), Analyzer 2 then narrows to subsections (H2). The parallel retriever fires queries scoped strictly to the identified `(section, subsection)` pairs — eliminating cross-section noise and ensuring every retrieved chunk is contextually grounded.
+
+### 3. Multimodal-Capable Retrieval
 Three content modalities are indexed and retrieved:
 - **Text** — section/subsection-aware prose chunks
 - **Structured tables** — converted to Markdown by `pdfplumber`, stored with page-level metadata
 - **Images** — encoded by the CLIP vision encoder; retrieved via CLIP's shared text–image embedding space (a text query vector is compared directly against image vectors)
 
-### 3. Cost-Effective Model Strategy
+### 4. Cost-Effective Model Strategy
 | Role | Model | Reason |
 |---|---|---|
 | Query Compiler, Router, Analyzers, Context Compiler | `gpt-4o-mini` | Text-only, low token count, high call frequency |
 | Multimodal Responder | `gpt-5.4` | Vision capability required for image reasoning; called once per turn |
 
-### 4. Stateful Multi-Turn Conversation
+### 5. Stateful Multi-Turn Conversation
 The Query Compiler receives the full `chat_history` on every turn. This allows it to resolve follow-up references (e.g., *"what about the fee?"* → *"What is the fee for SDoC application?"*) without the user re-stating context. The session resets on page refresh; no database persistence is applied.
 
-### 5. Deterministic Sequential Pipeline
+### 6. Deterministic Sequential Pipeline
 The workflow is a fixed sequential pipeline of six specialized chains plus one rule-based parallel retriever. There is no agent loop and no tool-calling. Branching occurs only at one guard point: the UNRELATED route (skips retrieval entirely). Outside this guard, every step executes deterministically in order, making the system predictable, debuggable, and straightforward to extend.
 
-### 6. Grounded Source References
+### 7. Grounded Source References
 Every response is automatically followed by a **References** block listing the exact source document, main section, subsection, and page number of every retrieved chunk used to construct the answer. Retrieved images are similarly attributed with their source label and section. This allows users to verify any claim against the original PDFs without manual searching, and reinforces the system's strictly grounded, no-hallucination design.
 
 ---
